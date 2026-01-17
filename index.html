@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="description" content="программа обмена гиперфайлами 2026">
+<meta name="author" content="cats-hack-memes-stuio.live">
+<link rel="icon" href=" https://avatars.mds.yandex.net/i?id=c2f243abf4ad7170af0d048befbd2b104792f962-10918338-images-thumbs&ref=rim&n=33&w=250&h=250" type="image/x-icon">
+<title></title>
+<style>
+:root{
+  --bg:#000; --fg:#f2f2f2; --muted:#bdbdbd; --card:#121212; --border:#2a2a2a; --accent:#3ea6ff; --mark:#ffd54f;
+}
+*{box-sizing:border-box}
+body { font-family: Arial, sans-serif; margin: 20px; background: var(--bg); color: var(--fg); }
+h1 { text-align: center; margin: 8px 0 16px; }
+.hidden { display: none; }
+form { margin-bottom: 30px; max-width: 600px; margin-left: auto; margin-right: auto; }
+input[type="text"], textarea, select, input[type="tel"], input[type="number"], input[type="password"]{
+  width:100%; padding:10px 12px; margin-top:8px; margin-bottom:16px; border:1px solid var(--border); background:#0a0a0a; color:var(--fg); border-radius:8px;
+}
+input[type="file"]{ margin-top:8px; margin-bottom:16px; color:var(--fg); }
+button{ padding:10px 16px; cursor:pointer; margin-right:10px; border-radius:8px; border:1px solid var(--border); background:#161616; color:var(--fg); }
+button:hover{ background:#1f1f1f }
+.feed{ display:flex; flex-direction:column; gap:20px; max-width:800px; margin-left:auto; margin-right:auto; }
+.item{ border:1px solid var(--border); background:var(--card); padding:15px; border-radius:12px; position:relative; }
+.item h3{ margin-top:0; }
+.vote-count{ font-weight:bold; }
+#tabs{ margin-top:20px; display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
+#tabs button{ min-width:120px }
+.tab-content{ display:none; }
+.tab-content.active{ display:block; }
+.words-stage{ position:relative; height:60vh; border:1px dashed var(--border); border-radius:10px; overflow:hidden; max-width:800px; margin:20px auto; background:#0a0a0a; }
+.word{ position:absolute; top:-60px; left:50%; transform:translateX(-50%); font-size:22px; opacity:0.98; white-space:nowrap; animation-name:fallLine; animation-timing-function:linear; animation-fill-mode:forwards; }
+@keyframes fallLine{ 0%{transform:translate(-50%,-60px);opacity:.98}100%{transform:translate(-50%,62vh);opacity:.2}}
+.words-gallery{ max-width:800px; margin:10px auto 0; display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+.words-gallery img{ width:100%; height:140px; object-fit:cover; border-radius:8px; border:1px solid var(--border); }
+.reviews-box{ margin-top:12px; padding-top:10px; border-top:1px dashed var(--border); }
+.reviews-box h4{ margin:0 0 8px 0; font-size:16px; }
+.reviews-list{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+.reviews-list .review-line{ display:flex; gap:8px; align-items:center; }
+.reviews-list p{ background:#0e0e0e; padding:6px 8px; border-radius:6px; margin:0; border:1px solid var(--border); flex:1; }
+mark{ background:var(--mark); color:#000; }
+.controls{ max-width:800px; margin:10px auto 20px; display:grid; gap:10px; grid-template-columns:1fr 1fr 1fr auto; }
+.controls .stack{ display:flex; gap:10px; }
+@media (max-width:920px){ .controls{ grid-template-columns:1fr; } }
+.floating-controls{ position:fixed; right:16px; bottom:16px; z-index:10; display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+.floating-controls select{ background:var(--card); color:var(--fg); border:1px solid var(--border); border-radius:8px; padding:8px 10px; }
+</style>
+</head>
+<body>
+<h1> THE BLACKER CAT OF HACKERS</h1>
+<p>русская программа обмена гиперфайлами</p>
+<p>--начальная версия 0.1/1.0--</p>
+<!-- Регистрация (страна + телефон -> отправка SMS-кода) -->
+<div id="registerDiv">
+  <h2>Регистрация</h2>
+  <form id="registerForm">
+    <label>Страна:</label>
+    <select id="regCountry">
+      <option value="RU">Россия (+7)</option>
+      <option value="US">США (+1)</option>
+      <option value="CN">Китай (+86)</option>
+    </select>
+    <label>Номер телефона:</label>
+    <input type="tel" id="regPhone" placeholder="+7 (___) ___-__-__" required/>
+    <div id="regPhoneHint" style="font-size:12px;opacity:.8;margin-top:-10px;margin-bottom:8px;">
+      Примеры: РФ +7 912 345-67-89 · US +1 415 555-2671 · CN +86 138 0013 8000
+    </div>
+    <div id="regErr" style="color:#ff6b6b;display:none;margin:-8px 0 8px;"></div>
+
+    <!-- reCAPTCHA контейнер (Firebase требует его на странице) -->
+    <div id="recaptcha-container" style="margin:10px 0;"></div>
+
+    <button type="submit">Отправить код</button>
+  </form>
+  <p style="max-width:600px;margin:0 auto 24px;opacity:.9;">
+    Нужна помощь? Служба поддержки: <b>support@example.com</b> или Telegram: <b>@support_demo</b>.
+  </p>
+</div>
+
+<!-- Вход (страна + телефон + код/пароль) -->
+<div id="loginDiv">
+  <h2>Вход</h2>
+  <form id="loginForm">
+    <label>Страна:</label>
+    <select id="loginCountry">
+      <option value="RU">Россия (+7)</option>
+      <option value="US">США (+1)</option>
+      <option value="CN">Китай (+86)</option>
+    </select>
+
+    <label>Номер телефона:</label>
+    <input type="tel" id="loginPhone" placeholder="+7 (___) ___-__-__" required/>
+
+    <label>Код из SMS:</label>
+    <input type="number" id="loginCode" inputmode="numeric" placeholder="6 цифр"/>
+
+    <label>Пароль (альтернатива SMS):</label>
+    <input type="password" id="loginPwd" placeholder="введите пароль АДМИНА"/>
+
+    <div id="loginErr" style="color:#ff6b6b;display:none;margin:-8px 0 8px;"></div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button type="submit">Войти</button>
+      <button type="button" id="loginResendBtn">Отправить код ещё раз</button>
+    </div>
+  </form>
+  <div style="max-width:600px;margin:0 auto;opacity:.8;font-size:14px;">
+    Можно войти по SMS-коду <b>или</b> по паролю.
+  </div>
+</div>
+
+<!-- Основной интерфейс после входа -->
+<div id="mainDiv" class="hidden">
+  <p>
+    Привет, <span id="userNameDisplay"></span>!
+    <button id="logoutBtn">Выйти</button>
+  </p>
+
+  <!-- Вкладки -->
+  <div id="tabs">
+    <button id="tabAbout">О нас</button>
+    <button id="tabWords">благодарность</button>
+    <button id="tabMarket">магазин обмена</button>
+    <button id="tabFAQ">FAQ</button>
+    <button id="tabArticles">Статьи</button>
+  </div>
+
+  <!-- О нас -->
+  <div id="content-about" class="tab-content">
+    <h2>О нас</h2>
+    <p>«THE BLACKER CAT OF HACKERS» — небольшая площадка с открытым исходным кодоми инструментами для публиковки гиперфайлов, <br> 
+	  предназначенная для анонимной связи файлами и создана исключительно для этичного хакинга. <br>
+      Данные хранятся в <code>localStorage</code> поэтому перенагружать бессмысленно. <br>
+	  версии будут тесты и возможно криптографические задания.ВНИМАНИЕ!!!   ЗА ЗАРАЖЕНИЯ ПК ВИРУСАМИ И ПРИ НЕЖАЛАТЕЛЬНЫХ <br>
+	  ПОСЛЕДСТВИЯХ Я ОТВЕТСТВЕННОСТИ НЕ НЕСУ!!!!! а также исcледуя сайт вы принимаете <a href="file:///C:/Users/bloss/Documents/lenta/pravilobn.htm#panel-r-7" >правила использования страницы </a> 
+	  </p>
+	  <p>вы молодец что попали на страницу! вот особенности версии 0.0.1/1.0!!</p>
+    <ul>
+      <li>бесконечность:публикуйте неограченное кол-во статей и файлов БЕСПЛАТНО!.</li>
+      <li>благодарность: загляните  в раздел благодарность- вы можете найти там имя сервиса в разработке которого учавствовали ВЫ!.</li>
+      <li>много коментов: коментируйте всё и вся!.</li>
+    </ul>
+
+    <h3 style="margin-top:24px;">the cats-hack-studio-memes.live</h3>
+    <div class="reviews-box">
+      <h4>Отзывы</h4>
+      <div class="reviews-list" id="about-reviews"></div>
+      <div style="display:flex;gap:8px;">
+        <input id="about-review-input" type="text" placeholder="Ваш отзыв" style="flex:1;">
+        <button id="about-review-add">Добавить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Слова -->
+  <div id="content-words" class="tab-content">
+    <h2>Особая благодарность</h2>
+    <p style="text-align:center;max-width:800px;margin:0 auto;">выражаю особую благодарность сервисам, благодоря которым был создан этот сайт:</p>
+    <div class="words-stage" id="wordsStage"></div>
+    <div class="words-gallery">
+      <img src="https://avatars.mds.yandex.net/i?id=30d001b3bb9143afaf91a5d52222a33f_l-10590187-images-thumbs&ref=rim&n=13&w=1200&h=630" alt="img1" width="200" height="100"/>
+      <img src="https://avatars.mds.yandex.net/i?id=fb7c3d6620080d81baffed77f014ccc3_l-12376819-images-thumbs&n=13" alt="img2" width="200" height="100">
+      <img src="https://avatars.mds.yandex.net/i?id=b7a6067bceebdbd70165e54e3b57b9ed49b11ca1-2440567-images-thumbs&n=13" alt="img3" width="200" height="100">
+    </div>
+  </div>
+
+  <!-- Маркет -->
+  <div id="content-market" class="tab-content">
+    <h2>Магазин файлов</h2>
+    <p>Здесь находится основной контент страницы - магазин файлов.</p>
+    <div class="controls">
+      <input id="searchInput" type="text" placeholder="Поиск по описанию...">
+      <div class="stack">
+        <select id="fileTypeFilter">
+          <option value="all">All types</option>
+          <option value="image">images</option>
+          <option value="video">video</option>
+          <option value="audio">audio</option>
+          <option value="document">documents</option>
+          <option value="bat">.bat</option>
+          <option value="html">.html</option>
+        </select>
+        <button id="clearSearchBtn">Сброс</button>
+      </div>
+      <div class="stack">
+        <select id="sortBy">
+          <option value="date">Дата</option>
+          <option value="votes">Голоса</option>
+        </select>
+        <select id="sortDir">
+          <option value="desc">чем меньше...</option>
+          <option value="asc">чем больше...</option>
+        </select>
+      </div>
+      <div id="searchMeta" style="align-self:center;color:var(--muted);"></div>
+    </div>
+
+    <h3>Опубликовать файл</h3>
+    <form id="uploadForm">
+      <label>Описание:</label>
+      <textarea id="description" required></textarea>
+      <label>Выберите файл:</label>
+      <input type="file" id="fileInput" required/>
+      <button type="submit">Добавить</button>
+    </form>
+
+    <div id="content-ads" class="feed"></div>
+
+    <h3>Жалобы на файлы</h3>
+    <div class="feed" id="complaints"></div>
+
+    <div id="adminPanel">
+      <h3>Панель администратора</h3>
+      <button id="registerUserBtn">Зарегистрировать номер</button><br/><br/>
+      <button id="resetByPasswordBtn">Сбросить данные по паролю</button>
+    </div>
+  </div>
+
+  <!-- FAQ -->
+  <div id="content-faq" class="tab-content">
+    <h2>FAQ — Часто задаваемые вопросы</h2>
+    <div class="feed" id="faqList"></div>
+  </div>
+
+  <!-- Статьи -->
+  <div id="content-articles" class="tab-content">
+    <h2>Статьи</h2>
+    <p>Публикуйте свои статьи в самых разных направлениях хакинга!!!</p>
+    <form id="articleForm">
+      <label>Название:</label>
+      <input type="text" id="articleTitle" required/>
+      <label>Описание:</label>
+      <textarea id="articleDesc" required></textarea>
+      <label>Имя создателя:</label>
+      <input type="text" id="articleAuthor" required/>
+      <label>Картинка:</label>
+      <input type="file" id="articleImage" accept="image/*" required/>
+      <button type="submit">Опубликовать статью</button>
+    </form>
+    <div id="articlesFeed" class="feed"></div>
+  </div>
+</div>
+
+<div class="floating-controls">
+  <select id="themeSelect" title="Тема">
+    <option value="black-white">Чёрный фон / белые буквы</option>
+    <option value="white-black">Белый фон / чёрные буквы</option>
+    <option value="yellow-white">Жёлтый фон / белые буквы</option>
+    <option value="black-blue">Чёрный фон / синие буквы</option>
+    <option value="white-blue">Белый фон / синие буквы</option>
+  </select>
+</div>
+
+<script>
+// ===== ДАННЫЕ =====
+let users = JSON.parse(localStorage.getItem('users')) || []; // [{phone}]
+let items = JSON.parse(localStorage.getItem('items')) || [];
+let complaints = JSON.parse(localStorage.getItem('complaints')) || [];
+let articles = JSON.parse(localStorage.getItem('articles')) || [];
+let currentUser = null;
+
+// ===== ЭЛЕМЕНТЫ =====
+const registerDiv = document.getElementById('registerDiv');
+const loginDiv = document.getElementById('loginDiv');
+const mainDiv = document.getElementById('mainDiv');
+
+const registerForm = document.getElementById('registerForm');
+const regPhone = document.getElementById('regPhone');
+const regCountry = document.getElementById('regCountry');
+const regErr = document.getElementById('regErr');
+const regPhoneHint = document.getElementById('regPhoneHint');
+
+const loginForm = document.getElementById('loginForm');
+const loginPhone = document.getElementById('loginPhone');
+const loginCountry = document.getElementById('loginCountry');
+const loginCode = document.getElementById('loginCode');
+const loginErr = document.getElementById('loginErr');
+
+// Новые элементы для альтернативного входа
+const loginPwd = document.getElementById('loginPwd');
+const loginResendBtn = document.getElementById('loginResendBtn');
+
+// Альтернативный пароль (как просили)
+const MAGIC_PWD = '2014EclearOV!!!';
+
+const logoutBtn = document.getElementById('logoutBtn');
+const userNameDisplay = document.getElementById('userNameDisplay');
+
+// Вкладки
+const tabsBar = document.getElementById('tabs');
+const tabAboutBtn = document.getElementById('tabAbout');
+const tabWordsBtn = document.getElementById('tabWords');
+const tabMarketBtn = document.getElementById('tabMarket');
+const tabFAQBtn = document.getElementById('tabFAQ');
+const tabArticlesBtn = document.getElementById('tabArticles');
+
+const contentAbout = document.getElementById('content-about');
+const contentWords = document.getElementById('content-words');
+const contentMarket = document.getElementById('content-market');
+const contentFAQ = document.getElementById('content-faq');
+const contentArticles = document.getElementById('content-articles');
+
+// Маркет
+const adsContainer = document.getElementById('content-ads');
+const complaintsContainer = document.getElementById('complaints');
+const uploadForm = document.getElementById('uploadForm');
+
+// Поиск/фильтр/сортировка
+const searchInput = document.getElementById('searchInput');
+const clearSearchBtn = document.getElementById('clearSearchBtn');
+const searchMeta = document.getElementById('searchMeta');
+const fileTypeFilter = document.getElementById('fileTypeFilter');
+const sortBySel = document.getElementById('sortBy');
+const sortDirSel = document.getElementById('sortDir');
+
+// About reviews
+const aboutReviewsDiv = document.getElementById('about-reviews');
+const aboutReviewInput = document.getElementById('about-review-input');
+const aboutReviewAddBtn = document.getElementById('about-review-add');
+
+// FAQ
+const faqList = document.getElementById('faqList');
+
+// Статьи
+const articleForm = document.getElementById('articleForm');
+const articleTitle = document.getElementById('articleTitle');
+const articleDesc = document.getElementById('articleDesc');
+const articleAuthor = document.getElementById('articleAuthor');
+const articleImage = document.getElementById('articleImage');
+const articlesFeed = document.getElementById('articlesFeed');
+
+let searchQuery = '';
+let wordsInitialized = false;
+
+// ===== ТЕМЫ =====
+const themeSelect = document.getElementById('themeSelect');
+function applyTheme(val){
+  if(val==='black-white'){ setCSS('#000','#fff'); }
+  else if(val==='white-black'){ setCSS('#fff','#000','#e5e5e5','#f8f8f8','#d0d0d0'); }
+  else if(val==='yellow-white'){ setCSS('#ffcc00','#ffffff','#e6b800','#333','#cc9900'); }
+  else if(val==='black-blue'){ setCSS('#000','#5aa3ff'); }
+  else if(val==='white-blue'){ setCSS('#ffffff','#1e88e5','#cfd8dc','#f6f8fa','#dfe3e6'); }
+  localStorage.setItem('theme', val);
+}
+function setCSS(bg, fg, border, card, muted){
+  document.documentElement.style.setProperty('--bg', bg);
+  document.documentElement.style.setProperty('--fg', fg);
+  if(border) document.documentElement.style.setProperty('--border', border);
+  if(card) document.documentElement.style.setProperty('--card', card);
+  if(muted) document.documentElement.style.setProperty('--muted', muted);
+}
+themeSelect.addEventListener('change', ()=>applyTheme(themeSelect.value));
+
+// ===== АВТОСБРОС КАЖДЫЕ 2 МЕСЯЦА =====
+function maybeAutoReset(){
+  const now = Date.now();
+  const last = parseInt(localStorage.getItem('lastReset') || '0',10);
+  const days60 = 60*24*60*60*1000;
+  if (!last || (now - last) >= days60){ resetAllData(false); }
+}
+function resetAllData(manual){
+  items = []; complaints = []; articles = [];
+  localStorage.setItem('items', JSON.stringify(items));
+  localStorage.setItem('complaints', JSON.stringify(complaints));
+  localStorage.setItem('articles', JSON.stringify(articles));
+  const toRemove = [];
+  for (let i=0;i<localStorage.length;i++){
+    const k = localStorage.key(i);
+    if(k && (k.startsWith('reviews-') || k==='about-reviews' || k.startsWith('article-reviews-'))){ toRemove.push(k); }
+  }
+  toRemove.forEach(k=>localStorage.removeItem(k));
+  localStorage.setItem('lastReset', Date.now().toString());
+  renderAds(); renderComplaints(); renderArticles(); renderAboutReviews();
+  if (manual) alert('Данные сброшены.');
+}
+
+// ====== Нормализация телефонов RU / US / CN -> E.164 ======
+function onlyDigits(s){ return (s||'').replace(/\D+/g,''); }
+function formatForCountry(country, rawDigits){
+  if(country==='RU'){
+    const d = rawDigits.slice(0,10);
+    const p1 = d.slice(0,3), p2=d.slice(3,6), p3=d.slice(6,8), p4=d.slice(8,10);
+    let out = '+7';
+    if (p1) out += ` (${p1}`; if (p1.length===3) out += ')';
+    if (p2) out += ` ${p2}`; if (p3) out += `-${p3}`; if (p4) out += `-${p4}`;
+    return out;
+  } else if(country==='US'){
+    const d = rawDigits.slice(0,10);
+    const a=d.slice(0,3), b=d.slice(3,6), c=d.slice(6,10);
+    let out = '+1';
+    if (a) out += ` (${a}`; if (a.length===3) out += ')';
+    if (b) out += ` ${b}`; if (c) out += `-${c}`;
+    return out;
+  } else { // CN
+    const d = rawDigits.slice(0,11);
+    const a=d.slice(0,3), b=d.slice(3,7), c=d.slice(7,11);
+    let out = '+86';
+    if (a) out += ` ${a}`;
+    if (b) out += ` ${b}`;
+    if (c) out += ` ${c}`;
+    return out;
+  }
+}
+function normalizePhone(country, input){
+  const digits = onlyDigits(input);
+  if(country==='RU'){
+    let tail = digits;
+    if (digits.startsWith('8')) tail = digits.slice(1);
+    else if (digits.startsWith('7')) tail = digits.slice(1);
+    if (tail.length===10) return { ok:true, e164:'+7'+tail };
+    return { ok:false, reason:'format' };
+  } else if(country==='US'){
+    let tail = digits;
+    if (digits.startsWith('1') && digits.length===11) tail = digits.slice(1);
+    if (tail.length===10) return { ok:true, e164:'+1'+tail };
+    return { ok:false, reason:'format' };
+  } else { // CN
+    let tail = digits;
+    if (digits.startsWith('86') && digits.length>=13) tail = digits.slice(2);
+    if (tail.length===11 && tail.startsWith('1')) return { ok:true, e164:'+86'+tail };
+    return { ok:false, reason:'format' };
+  }
+}
+function validatePhone(country, input){
+  const n = normalizePhone(country, input);
+  if(!n.ok){
+    const msg = (country==='RU')
+      ? 'Введите номер РФ: +7 9XX XXX-XX-XX (10 цифр).'
+      : (country==='US')
+        ? 'Введите номер США: +1 XXX XXX-XXXX (10 цифр).'
+        : 'Введите мобильный номер Китая: +86 1XX XXXX XXXX (11 цифр).';
+    return { ok:false, msg };
+  }
+  return { ok:true, e164:n.e164 };
+}
+function attachMask($input, $country){
+  $input.addEventListener('input', ()=>{
+    const c = $country.value;
+    let d = onlyDigits($input.value);
+    if (c==='RU'){ if (d.startsWith('7')||d.startsWith('8')) d = d.slice(1); }
+    if (c==='US'){ if (d.startsWith('1') && d.length>10) d = d.slice(1); }
+    if (c==='CN'){ if (d.startsWith('86')) d = d.slice(2); }
+    $input.value = formatForCountry(c, d);
+  });
+  $country.addEventListener('change', ()=>{
+    $input.value = '';
+    if ($country.value==='RU') $input.placeholder = '+7 (___) ___-__-__';
+    if ($country.value==='US') $input.placeholder = '+1 (___) ___-____';
+    if ($country.value==='CN') $input.placeholder = '+86 1XX XXXX XXXX';
+  });
+}
+attachMask(regPhone, regCountry);
+attachMask(loginPhone, loginCountry);
+
+// ===== ОТПРАВКА И ПРОВЕРКА КОДА ЧЕРЕЗ FIREBASE (реальные SMS) =====
+let _firebaseAuth = null;
+let _confirmationResult = null;
+
+async function initFirebase(){
+  _firebaseAuth = window.firebaseAuth;
+  // безопасно пересоздаём reCAPTCHA (для повтора отправки)
+  if (window.recaptchaVerifier && typeof window.recaptchaVerifier.clear === 'function') {
+    try { window.recaptchaVerifier.clear(); } catch(_) {}
+  }
+  window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'invisible' });
+}
+
+// универсальная отправка SMS
+async function sendSmsCode(e164Phone){
+  if (!_firebaseAuth) await initFirebase();
+  const appVerifier = window.recaptchaVerifier;
+  _confirmationResult = await firebase.auth().signInWithPhoneNumber(e164Phone, appVerifier);
+}
+
+registerForm.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  regErr.style.display='none';
+  if (!_firebaseAuth) await initFirebase();
+
+  const country = regCountry.value;
+  const input = (regPhone.value||'').trim();
+  const v = validatePhone(country, input);
+  if (!v.ok){ regErr.textContent=v.msg; regErr.style.display='block'; return; }
+  const phone = v.e164;
+
+  if (!users.some(u => u.phone===phone)) {
+    users.push({ phone });
+    localStorage.setItem('users', JSON.stringify(users));
+  }
+
+  try{
+    await sendSmsCode(phone);
+    alert('Код отправлен по SMS. Откройте вкладку «Вход» и введите код (или войдите по паролю).');
+  }catch(err){
+    console.error(err);
+    regErr.textContent = 'Не удалось отправить SMS (проверьте номер/попытки/reCAPTCHA).';
+    regErr.style.display='block';
+  }
+});
+
+// повторная отправка кода со страницы «Вход»
+if (loginResendBtn){
+  loginResendBtn.addEventListener('click', async ()=>{
+    loginErr.style.display = 'none';
+    try{
+      const country = loginCountry.value;
+      const input = (loginPhone.value||'').trim();
+      const v = validatePhone(country, input);
+      if (!v.ok){ loginErr.textContent=v.msg; loginErr.style.display='block'; return; }
+      const phone = v.e164;
+
+      await sendSmsCode(phone);
+      alert('Код повторно отправлен по SMS.');
+    }catch(err){
+      console.error(err);
+      loginErr.textContent = 'Не удалось отправить SMS. Попробуйте ещё раз.';
+      loginErr.style.display='block';
+    }
+  });
+}
+
+loginForm.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  loginErr.style.display='none';
+  if (!_firebaseAuth) await initFirebase();
+
+  const country = loginCountry.value;
+  const inputPhone = (loginPhone.value||'').trim();
+  const code = (loginCode.value||'').trim();
+  const pwd  = (loginPwd ? loginPwd.value : '') || '';
+
+  const v = validatePhone(country, inputPhone);
+  if (!v.ok){ loginErr.textContent=v.msg; loginErr.style.display='block'; return; }
+  const phone = v.e164;
+
+  // ===== Путь 1: вход по паролю =====
+  if (pwd){
+    if (pwd === MAGIC_PWD){
+      if (!users.some(u => u.phone===phone)) {
+        users.push({ phone });
+        localStorage.setItem('users', JSON.stringify(users));
+      }
+      currentUser = { phone };
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      initUserSession();
+      return;
+    } else {
+      loginErr.textContent = 'Неверный пароль.';
+      loginErr.style.display='block';
+      return;
+    }
+  }
+
+  // ===== Путь 2: вход по SMS-коду =====
+  if (!code || code.length!==6){
+    loginErr.textContent='Введите 6-значный код или используйте пароль.';
+    loginErr.style.display='block';
+    return;
+  }
+  if (!users.some(u => u.phone===phone)){
+    loginErr.textContent='Номер не зарегистрирован. Сначала отправьте код.';
+    loginErr.style.display='block';
+    return;
+  }
+
+  try{
+    if (_confirmationResult){
+      await _confirmationResult.confirm(code);
+    }else{
+      loginErr.textContent='Сначала отправьте код (кнопка «Отправить код ещё раз»).';
+      loginErr.style.display='block';
+      return;
+    }
+    currentUser = { phone };
+    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    initUserSession();
+  }catch(err){
+    console.error(err);
+    loginErr.textContent = 'Неверный или просроченный код. Отправьте новый или войдите по паролю.';
+    loginErr.style.display='block';
+  }
+});
+
+// ===== ONLOAD =====
+window.onload = () => {
+  const savedTheme = localStorage.getItem('theme') || 'black-white';
+  themeSelect.value = savedTheme; applyTheme(savedTheme);
+
+  const savedQuery = localStorage.getItem('search_query') || '';
+  const savedType  = localStorage.getItem('filter_type') || 'all';
+  const savedSortBy= localStorage.getItem('sort_by') || 'date';
+  const savedSortDir=localStorage.getItem('sort_dir') || 'desc';
+  if (searchInput) searchInput.value = savedQuery;
+  if (fileTypeFilter) fileTypeFilter.value = savedType;
+  if (sortBySel) sortBySel.value = savedSortBy;
+  if (sortDirSel) sortDirSel.value = savedSortDir;
+  searchQuery = (savedQuery || '').toLowerCase().trim();
+
+  maybeAutoReset();
+
+  const savedUser = JSON.parse(localStorage.getItem('currentUser'));
+  if (savedUser) {
+    currentUser=savedUser;
+    if (!users.some(u=>u.phone===currentUser.phone)){
+      currentUser=null; localStorage.removeItem('currentUser');
+      show(registerDiv); show(loginDiv); hide(mainDiv);
+    } else {
+      initUserSession();
+    }
+  } else {
+    show(registerDiv); show(loginDiv); hide(mainDiv);
+  }
+};
+
+function initUserSession() {
+  hide(registerDiv); hide(loginDiv); show(mainDiv);
+  tabsBar.classList.remove('hidden');
+  userNameDisplay.textContent = currentUser.phone;
+  showTab('about'); renderFAQ(); renderArticles(); renderAboutReviews();
+}
+
+// ===== ВЫХОД =====
+logoutBtn.onclick=()=>{ localStorage.removeItem('currentUser'); currentUser=null; location.reload(); };
+
+// ===== АДМИН (демо-кнопки) =====
+const deleteAllBtn = document.getElementById('deleteAllBtn');
+const deleteComplaintsBtn = document.getElementById('deleteComplaintsBtn');
+const registerUserBtn = document.getElementById('registerUserBtn');
+const resetByPasswordBtn = document.getElementById('resetByPasswordBtn');
+
+if (registerUserBtn) {
+  registerUserBtn.onclick=()=>{
+    const phone=prompt("Введите номер телефона для регистрации в E.164, например +79123456789:");
+    if(!phone){ alert("Номер не может быть пустым"); return;}
+    if(users.some(u=>u.phone===phone)){ alert("Номер уже зарегистрирован"); return;}
+    users.push({ phone });
+    localStorage.setItem('users', JSON.stringify(users));
+    alert(`Номер ${phone} зарегистрирован. Отправьте код на экране Регистрация.`);
+  };
+}
+if (deleteAllBtn) {
+  deleteAllBtn.onclick=()=> {
+    if(confirm("Удалить все объявления?")){ items=[]; localStorage.setItem('items', JSON.stringify(items)); renderAds(); }
+  };
+}
+if (deleteComplaintsBtn) {
+  deleteComplaintsBtn.onclick=()=> {
+    if(confirm("Удалить все жалобы?")){ complaints=[]; localStorage.setItem('complaints', JSON.stringify(complaints)); renderComplaints(); }
+  };
+}
+if (resetByPasswordBtn){
+  resetByPasswordBtn.onclick=()=>{
+    const p = prompt('Введите пароль для сброса данных:');
+    if (p==='090909'){ resetAllData(true); }
+    else if (p!==null){ alert('Неверный пароль.'); }
+  };
+}
+
+// ===== ДОБАВЛЕНИЕ ОБЪЯВЛЕНИЯ =====
+if (uploadForm) {
+  uploadForm.onsubmit=e=>{
+    e.preventDefault();
+    if(!currentUser){ alert("Пожалуйста, войдите в систему"); return; }
+    const description=document.getElementById('description').value.trim();
+    const fileInput=document.getElementById('fileInput');
+    const file=fileInput.files[0];
+    if(!file || !description){ alert("Выберите файл и укажите описание"); return; }
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      const fileDataUrl=ev.target.result;
+      const item={ id:Date.now(), description, fileName:file.name, fileType:file.type, fileDataUrl,
+        owner:currentUser.phone, votes:{ count:0, voters:[] } };
+      items.unshift(item);
+      localStorage.setItem('items', JSON.stringify(items));
+      renderAds(); uploadForm.reset();
+    };
+    reader.readAsDataURL(file);
+  };
+}
+
+// ===== ПОМОЩНИК СКАЧИВАНИЯ =====
+function dataURLtoBlob(dataUrl){
+  const [meta, b64] = dataUrl.split(',');
+  const isBase64 = /;base64/i.test(meta);
+  const mime = (meta.match(/^data:([^;]+)/i) || [,'application/octet-stream'])[1];
+  let binStr;
+  if (isBase64) binStr = atob(b64);
+  else binStr = decodeURIComponent(b64);
+  const len = binStr.length;
+  const u8 = new Uint8Array(len);
+  for (let i=0;i<len;i++) u8[i] = binStr.charCodeAt(i);
+  return new Blob([u8], { type: mime });
+}
+function downloadItem(item){
+  const a = document.createElement('a');
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  if (item.fileDataUrl && item.fileDataUrl.startsWith('data:')){
+    const blob = dataURLtoBlob(item.fileDataUrl);
+    const url = URL.createObjectURL(blob);
+    a.href = url;
+    a.download = item.fileName || 'file';
+    a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+  } else {
+    a.href = item.fileDataUrl;
+    a.download = item.fileName || 'file';
+    a.target = '_blank';
+    a.click();
+    a.remove();
+  }
+}
+
+// ===== ПОИСК/ФИЛЬТР/СОРТ =====
+if (searchInput) {
+  let t;
+  searchInput.addEventListener('input', () => {
+    clearTimeout(t);
+    t = setTimeout(() => {
+      const q = (searchInput.value || '');
+      searchQuery = q.toLowerCase().trim();
+      localStorage.setItem('search_query', q);
+      renderAds();
+    }, 150);
+  });
+}
+if (clearSearchBtn) {
+  clearSearchBtn.addEventListener('click', () => {
+    searchInput.value = ''; searchQuery = '';
+    fileTypeFilter.value='all'; sortBySel.value='date'; sortDirSel.value='desc';
+    localStorage.removeItem('search_query');
+    localStorage.setItem('filter_type','all');
+    localStorage.setItem('sort_by','date');
+    localStorage.setItem('sort_dir','desc');
+    renderAds();
+  });
+}
+[fileTypeFilter, sortBySel, sortDirSel].forEach(el=>{
+  el.addEventListener('change', () => {
+    if (el===fileTypeFilter) localStorage.setItem('filter_type', fileTypeFilter.value);
+    if (el===sortBySel)    localStorage.setItem('sort_by', sortBySel.value);
+    if (el===sortDirSel)   localStorage.setItem('sort_dir', sortDirSel.value);
+    renderAds();
+  });
+});
+
+// Подсветка
+function highlightMatch(text, q) {
+  if (!q) return text;
+  const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`(${esc})`, 'ig');
+  return text.replace(re, '<mark>$1</mark>');
+}
+function getFileKind(item){
+  const t = (item.fileType||'').toLowerCase();
+  if (t.startsWith('image/')) return 'image';
+  if (t.startsWith('video/')) return 'video';
+  if (t.startsWith('audio/')) return 'audio';
+  const ext = (item.fileName||'').toLowerCase().split('.').pop();
+  if (ext==='bat') return 'bat';
+  if (ext==='html' || ext==='htm') return 'html';
+  return 'document';
+}
+
+/* ===== РЕНДЕР ТОВАРОВ ===== */
+function renderAds() {
+  adsContainer.innerHTML='';
+  let list = items.filter(it => (it.description || '').toLowerCase().includes(searchQuery));
+  const ft = fileTypeFilter.value;
+  if (ft && ft!=='all') list = list.filter(it => getFileKind(it)===ft || (ft==='document' && getFileKind(it)==='document'));
+  const by = sortBySel.value; const dir = sortDirSel.value;
+  list.sort((a,b)=>{
+    let va, vb; if (by==='votes'){ va=a.votes?.count||0; vb=b.votes?.count||0; } else { va=a.id; vb=b.id; }
+    const s = va<vb ? -1 : va>vb ? 1 : 0; return dir==='asc' ? s : -s;
+  });
+  const hasFilter = (searchQuery || ft!=='all');
+  searchMeta.textContent = hasFilter ? `Найдено: ${list.length}` : '';
+  list.forEach(item => {
+    const div=document.createElement('div'); div.className='item';
+    const title=document.createElement('h3'); title.innerHTML = highlightMatch(item.description, searchQuery); div.appendChild(title);
+    let media;
+    if(item.fileType.startsWith("image/")){
+      media=document.createElement('img'); media.src=item.fileDataUrl; media.style.maxWidth='100%'; media.style.borderRadius='8px';
+    } else if(item.fileType.startsWith("video/")){
+      media=document.createElement('video'); media.src=item.fileDataUrl; media.controls=true; media.style.maxWidth='100%'; media.style.borderRadius='8px';
+    } else if(item.fileType.startsWith("audio/")){
+      media=document.createElement('audio'); media.src=item.fileDataUrl; media.controls=true;
+    } else {
+      media=document.createElement('a'); media.href=item.fileDataUrl; media.textContent='Скачать файл'; media.target='_blank';
+      media.style.display='inline-block'; media.style.marginTop='10px'; media.style.color= 'var(--accent)';
+      media.download = item.fileName || 'file';
+    }
+    div.appendChild(media);
+
+    // Кнопка "Скачать" для любого типа
+    const dlBtn = document.createElement('button');
+    dlBtn.textContent = 'Скачать';
+    dlBtn.onclick = () => downloadItem(item);
+    div.appendChild(dlBtn);
+
+    const voteBtn=document.createElement('button'); voteBtn.textContent='Голосовать';
+    const voteCountSpan=document.createElement('span'); voteCountSpan.className='vote-count';
+    function updateVoteDisplay(){ voteCountSpan.textContent=`  Голоса: ${item.votes.count}`; }
+    function hasVoted(){ return item.votes.voters.includes(currentUser?.phone); }
+    voteBtn.onclick=()=>{
+      if(!currentUser){ alert("Пожалуйста, войдите в систему чтобы голосовать"); return; }
+      if(hasVoted()){ alert("Вы уже проголосовали за это объявление"); return; }
+      item.votes.count++; item.votes.voters.push(currentUser.phone);
+      localStorage.setItem('items', JSON.stringify(items)); updateVoteDisplay();
+    };
+    updateVoteDisplay(); div.appendChild(voteBtn); div.appendChild(voteCountSpan);
+
+    const reviewsBox = document.createElement('div'); reviewsBox.className='reviews-box';
+    const reviewsTitle = document.createElement('h4'); reviewsTitle.textContent='Отзывы'; reviewsBox.appendChild(reviewsTitle);
+    const reviewsDiv = document.createElement('div'); reviewsDiv.className='reviews-list'; reviewsDiv.id = 'reviews-'+item.id; reviewsBox.appendChild(reviewsDiv);
+    const input = document.createElement('input'); input.type='text'; input.placeholder='Ваш отзыв'; input.style.width='70%';
+    const addBtn = document.createElement('button'); addBtn.textContent='Добавить отзыв';
+    addBtn.onclick = () => {
+      const t = input.value.trim();
+      if (t) {
+        const key = 'reviews-'+item.id;
+        const list = JSON.parse(localStorage.getItem(key)) || [];
+        list.push(t); localStorage.setItem(key, JSON.stringify(list)); input.value=''; renderReviewsForItem(item.id);
+      }
+    };
+    reviewsBox.appendChild(input); reviewsBox.appendChild(addBtn); div.appendChild(reviewsBox);
+
+    const complainBtn = document.createElement('button'); complainBtn.textContent='Пожаловаться';
+    complainBtn.onclick=()=>{ complaints.push({id:item.id,owner:item.owner,description:item.description,filename:item.fileName});
+      localStorage.setItem('complaints',JSON.stringify(complaints)); alert("Жалоба отправлена"); renderComplaints(); };
+    div.appendChild(complainBtn);
+
+    if(currentUser && (currentUser.phone===item.owner)){
+      const delBtn=document.createElement('button'); delBtn.textContent='Удалить';
+      delBtn.onclick=()=>{ if(confirm('Удалить это объявление?')){ items=items.filter(i=>i.id!==item.id); localStorage.setItem('items', JSON.stringify(items)); renderAds(); } };
+      div.appendChild(delBtn);
+    }
+    adsContainer.appendChild(div); renderReviewsForItem(item.id);
+  });
+}
+function renderReviewsForItem(itemId) {
+  const reviewsDiv = document.getElementById('reviews-'+itemId); if (!reviewsDiv) return;
+  reviewsDiv.innerHTML=''; const list = JSON.parse(localStorage.getItem('reviews-'+itemId)) || [];
+  list.forEach((text, idx) => {
+    const line = document.createElement('div'); line.className='review-line';
+    const p=document.createElement('p'); p.textContent=text;
+    const delBtn = document.createElement('button'); delBtn.textContent='Удалить';
+    delBtn.onclick=()=>{
+      const pcode = prompt('Введите пароль для удаления отзыва:');
+      if (pcode==='090909'){
+        const arr = JSON.parse(localStorage.getItem('reviews-'+itemId)) || [];
+        arr.splice(idx,1); localStorage.setItem('reviews-'+itemId, JSON.stringify(arr)); renderReviewsForItem(itemId);
+      } else if (pcode!==null){ alert('Неверный пароль.'); }
+    };
+    line.appendChild(p); line.appendChild(delBtn); reviewsDiv.appendChild(line);
+  });
+}
+
+// ===== ЖАЛОБЫ =====
+function renderComplaints() {
+  complaintsContainer.innerHTML='';
+  complaints.forEach((c, i) => {
+    const div=document.createElement('div'); div.className='item';
+    const info=document.createElement('p');
+    info.innerHTML=`Жалоба на объявление ID: ${c.id} от ${c.owner}<br/>Описание: ${c.description}<br/>Файл: ${c.filename}`;
+    const delBtn=document.createElement('button'); delBtn.textContent='Удалить жалобу';
+    delBtn.onclick=()=>{
+      const pcode = prompt('Введите пароль для удаления жалобы:');
+      if (pcode==='090909'){
+        complaints.splice(i,1); localStorage.setItem('complaints',JSON.stringify(complaints)); renderComplaints();
+      } else if (pcode!==null){ alert('Неверный пароль.'); }
+    };
+    div.appendChild(delBtn); div.appendChild(info); complaintsContainer.appendChild(div);
+  });
+}
+
+// ===== FAQ =====
+function renderFAQ(){
+  const qa = [
+    {q:'есть ли у площадки сервер?', a:'нет. это площадка в один файл с открытым исходником'},
+    {q:'почему нежелательно писать отзывы на иностранных языках?', a:'наш иноговорящий персонал не всегда доступен'},
+    {q:'где хранятся данные?', a:'в локальном хранилище вашего браузера'},
+    {q:'что означает головать?', a:'нажмите ,если вам понравился файл'},
+    {q:'учитываются ли голоса?', a:'да. в фильтрах'},
+    {q:'Как пожаловаться?', a:'Кнопка «Пожаловаться» под товаром.'},
+    {q:'что будет, если я буду невнимательным?', a:'вы можете заразиться вирусом и повредить ПК!!!'},
+    {q:'когда вкладки сбрасываются и сбрасываются ли они ?', a:'Они сбрасываются каждые 2 месяца с момента последнего сброса.'},
+    {q:'-----?', a:'-----'},
+    {q:'как сменить тему?', a:'В правом нижнем углу — селектор темы.'},
+    {q:'Как получить код входа?', a:'На «Регистрация» введите телефон и отправьте код (SMS) или войдите по паролю.'}
+  ];
+  faqList.innerHTML='';
+  qa.forEach(({q,a},i)=>{
+    const box = document.createElement('div'); box.className='item';
+    const h = document.createElement('h3'); h.textContent=`${i+1}. ${q}`;
+    const p = document.createElement('p'); p.textContent=a;
+    box.appendChild(h); box.appendChild(p); faqList.appendChild(box);
+  });
+}
+
+// ===== СТАТЬИ =====
+if (articleForm){
+  articleForm.addEventListener('submit', e=>{
+    e.preventDefault();
+    if(!currentUser){ alert('Пожалуйста, войдите в систему'); return; }
+    const t = articleTitle.value.trim();
+    const d = articleDesc.value.trim();
+    const a = articleAuthor.value.trim();
+    const f = articleImage.files[0];
+    if(!t || !d || !a || !f){ alert('Заполните все поля и выберите картинку'); return; }
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      const imgUrl = ev.target.result;
+      const art = { id: Date.now(), title: t, desc: d, author: a, img: imgUrl, owner: currentUser.phone };
+      articles.unshift(art); localStorage.setItem('articles', JSON.stringify(articles));
+      articleForm.reset(); renderArticles();
+    };
+    reader.readAsDataURL(f);
+  });
+}
+function renderArticles(){
+  articlesFeed.innerHTML='';
+  (articles||[]).forEach(art=>{
+    const div = document.createElement('div'); div.className='item';
+    const h = document.createElement('h3'); h.textContent = art.title;
+    const meta = document.createElement('p'); meta.style.marginTop='-6px'; meta.style.color='var(--muted)'; meta.textContent = `Автор: ${art.author}`;
+    const img = document.createElement('img'); img.src = art.img; img.style.maxWidth='100%'; img.style.borderRadius='8px'; img.style.margin='6px 0';
+    const d = document.createElement('p'); d.textContent = art.desc;
+    div.appendChild(h); div.appendChild(meta); div.appendChild(img); div.appendChild(d);
+    const del = document.createElement('button'); del.textContent='Удалить статью';
+    del.onclick=()=>{
+      const pcode = prompt('Введите пароль для удаления статьи:');
+      if (pcode==='090909'){ articles = articles.filter(x=>x.id!==art.id); localStorage.setItem('articles', JSON.stringify(articles)); renderArticles(); }
+      else if (pcode!==null){ alert('Неверный пароль.'); }
+    };
+    div.appendChild(del); articlesFeed.appendChild(div);
+  });
+}
+
+// ===== ВКЛАДКИ =====
+function showTab(tab) {
+  [contentAbout, contentWords, contentMarket, contentFAQ, contentArticles].forEach(tc=>tc.classList.remove('active'));
+  if (tab==='about') contentAbout.classList.add('active');
+  else if (tab==='words'){ contentWords.classList.add('active'); initWordsStage(); }
+  else if (tab==='market'){ contentMarket.classList.add('active'); renderAds(); renderComplaints(); }
+  else if (tab==='faq'){ contentFAQ.classList.add('active'); renderFAQ(); }
+  else if (tab==='articles'){ contentArticles.classList.add('active'); renderArticles(); }
+}
+tabAboutBtn.onclick = ()=> showTab('about');
+tabWordsBtn.onclick = ()=> showTab('words');
+tabMarketBtn.onclick = ()=> showTab('market');
+tabFAQBtn.onclick = ()=> showTab('faq');
+tabArticlesBtn.onclick = ()=> showTab('articles');
+
+// ===== СЛОВА =====
+function initWordsStage() {
+  if (wordsInitialized) return; wordsInitialized = true;
+  const words = ['gptchat','cicada3301','trygpt','lolz.live','notepad++','firebase','кодик','ai асистент(gpt)','kaspersky','?????'];
+  const stage = document.getElementById('wordsStage'); let idx = 0; const durationSec = 2.8; const pauseMs = 300;
+  function dropNext(){
+    const w = words[idx % words.length]; idx++;
+    const span = document.createElement('span'); span.className = 'word'; span.textContent = w; span.style.animationDuration = durationSec + 's';
+    stage.appendChild(span); span.addEventListener('animationend', ()=>{ span.remove(); setTimeout(dropNext, pauseMs); });
+  }
+  dropNext();
+}
+
+// show/hide
+function show(el){ el.classList.remove('hidden'); }
+function hide(el){ el.classList.add('hidden'); }
+</script>
+
+<!-- Firebase SDKs (без дополнительных файлов, прямо из CDN) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script>
+/* === ВСТАВЬ СВОИ ДАННЫЕ ПРОЕКТА FIREBASE НИЖЕ ===
+  1) console.firebase.google.com -> создать проект
+  2) Authentication -> Sign-in method -> Включить "Phone"
+  3) Project settings -> Your apps (Web) -> скопировать config и вставить вместо плейсхолдеров
+  4) (при тестах) Authentication -> Phone -> Add phone number for testing (опционально)
+*/
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyDYYW-QUtoUjRJUnz6aNF1yI0UQH7eH0-A",
+  authDomain: "the-blacker-cat-for-hackers.firebaseapp.com",
+  projectId: "the-blacker-cat-for-hackers",
+  storageBucket: "the-blacker-cat-for-hackers.firebasestorage.app",
+  messagingSenderId: "1046655393438",
+  appId: "1:1046655393438:web:153e3b4bf4e5234742e58f",
+  measurementId: "G-CLZ600V8HP"
+};
+firebase.initializeApp(firebaseConfig);
+window.firebaseAuth = firebase.auth();
+</script>
+</body>
+</html>
